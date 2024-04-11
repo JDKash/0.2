@@ -38,7 +38,7 @@ type Operation struct {
 func validateAndProcessString(str string) (string, error) {
 	// Проверка, что строка заключена в двойные кавычки
 	if !strings.HasPrefix(str, "\"") || !strings.HasSuffix(str, "\"") {
-		return "", errors.New("строка должна быть заключена в двойные кавычки")
+		panic("строка должна быть заключена в двойные кавычки")
 	}
 
 	// Удаление кавычек
@@ -46,7 +46,7 @@ func validateAndProcessString(str string) (string, error) {
 
 	// Проверка длины строки
 	if len(processedStr) > MaxStringLength {
-		return "", errors.New("длина строки превышает максимально допустимую")
+		panic("длина строки превышает максимально допустимую")
 	}
 
 	return processedStr, nil
@@ -64,7 +64,7 @@ func determineOperationType(opSymbol string) (OperationType, error) {
 	case "/":
 		return Divide, nil
 	default:
-		return 0, errors.New("неподдерживаемая операция")
+		panic("неподдерживаемая операция")
 	}
 }
 
@@ -82,16 +82,16 @@ func processSecondOperand(operand string, opType OperationType) (string, int, er
 		// Для умножения и деления второй операнд должен быть числом
 		number, err := strconv.Atoi(operand)
 		if err != nil {
-			return "", 0, errors.New("не удалось преобразовать второй операнд в число")
+			panic("не удалось преобразовать второй операнд в число")
 		}
 		// Проверка диапазона числа
 		if number < 1 || number > MaxNumber {
-			return "", 0, errors.New("число вне допустимого диапазона")
+			panic("число вне допустимого диапазона")
 		}
 		return "", number, nil
 	default:
 		// Для полноты
-		return "", 0, errors.New("неизвестный тип операции")
+		panic("неизвестный тип операции")
 	}
 }
 
