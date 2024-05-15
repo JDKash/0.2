@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -10,49 +9,70 @@ import (
 	"strings"
 )
 
-// Определение констант
 const (
-	MaxStringLength = 10
 	MaxNumber       = 10
+	MaxOutputLength = 40
 )
 
-// OperationType Определение типа операции
 type OperationType int
 
 const (
-	Add      OperationType = iota // Сложение
-	Subtract                      // Вычитание
-	Multiply                      // Умножение
-	Divide                        // Деление
+	Add OperationType = iota
+	Subtract
+	Multiply
+	Divide
 )
 
-// Operation Определение структуры операции
 type Operation struct {
-	LeftStr  string        // Левый операнд (строка)
-	RightStr string        // Правый операнд (строка, может быть пустым)
-	Number   int           // Операнд (число, может быть 0)
-	OpType   OperationType // Тип операции
+	LeftStr  string
+	RightStr string
+	Number   int
+	OpType   OperationType
 }
 
-// Функция для валидации и обработки строки, заключенной в кавычки
-func validateAndProcessString(str string) (string, error) {
-	// Проверка, что строка заключена в двойные кавычки
-	if !strings.HasPrefix(str, "\"") || !strings.HasSuffix(str, "\"") {
-		panic("строка должна быть заключена в двойные кавычки")
+func parseInput(input string) (Operation, error) {
+	trimmedInput := strings.TrimSpace(input)
+	if trimmedInput == "" {
+		panic("пустая строка ввода")
 	}
 
-	// Удаление кавычек
-	processedStr := str[1 : len(str)-1]
-
-	// Проверка длины строки
-	if len(processedStr) > MaxStringLength {
-		panic("длина строки превышает максимально допустимую")
+	regex := regexp.MustCompile(`^"([^"]{1,10})"\s([+\-*/])\s(?:("([^"]{1,10})")|(\d+))$`)
+	matches := regex.FindStringSubmatch(trimmedInput)
+	if matches == nil {
+		panic("неправильный формат ввода")
 	}
 
-	return processedStr, nil
+	leftStr := matches[1]
+	opType, err := determineOperationType(matches[2])
+	if err != nil {
+		panic(err.Error())
+	}
+
+	var rightStr string
+	var number int
+	if matches[3] != "" {
+		rightStr = matches[4]
+		if opType == Multiply || opType == Divide {
+			panic("операция требует числового второго операнда")
+		}
+	} else {
+		number, err = strconv.Atoi(matches[5])
+		if err != nil || number < 1 || number > MaxNumber {
+			panic("число вне допустимого диапазона")
+		}
+		if opType == Add || opType == Subtract {
+			panic("операция требует строкового второго операнда")
+		}
+	}
+
+	return Operation{
+		LeftStr:  leftStr,
+		RightStr: rightStr,
+		Number:   number,
+		OpType:   opType,
+	}, nil
 }
 
-// Функция для определения типа операции
 func determineOperationType(opSymbol string) (OperationType, error) {
 	switch opSymbol {
 	case "+":
@@ -64,126 +84,21 @@ func determineOperationType(opSymbol string) (OperationType, error) {
 	case "/":
 		return Divide, nil
 	default:
-		panic("неподдерживаемая операция")
+		return 0, fmt.Errorf("неподдерживаемая операция: %s", opSymbol)
 	}
 }
 
-// Функция для обработки второго операнда в зависимости от типа операции
-func processSecondOperand(operand string, opType OperationType) (string, int, error) {
-	switch opType {
-	case Add, Subtract:
-		// Для сложения и вычитания второй операнд должен быть строкой
-		processedStr, err := validateAndProcessString(operand)
-		if err != nil {
-			return "", 0, err
-		}
-		return processedStr, 0, nil
-	case Multiply, Divide:
-		// Для умножения и деления второй операнд должен быть числом
-		number, err := strconv.Atoi(operand)
-		if err != nil {
-			panic("не удалось преобразовать второй операнд в число")
-		}
-		// Проверка диапазона числа
-		if number < 1 || number > MaxNumber {
-			panic("число вне допустимого диапазона")
-		}
-		return "", number, nil
-	default:
-		// Для полноты
-		panic("неизвестный тип операции")
-	}
-}
-
-/* Парсим ввод
-func parseInput(input string) (Operation, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return Operation{}, errors.New("пустая строка ввода")
-	}
-
-	parts := strings.Fields(trimmedInput)
-	if len(parts) != 3 {
-		return Operation{}, errors.New("ввод должен содержать ровно три элемента")
-	}
-
-	leftStr, err := validateAndProcessString(parts[0])
-	if err != nil {
-		return Operation{}, err
-	}
-
-	opType, err := determineOperationType(parts[1])
-	if err != nil {
-		return Operation{}, err
-	}
-
-	rightStr, number, err := processSecondOperand(parts[2], opType)
-	if err != nil {
-		return Operation{}, err
-	}
-
-	return Operation{
-		LeftStr:  leftStr,
-		RightStr: rightStr,
-		Number:   number,
-		OpType:   opType,
-	}, nil
-}
-*/
-
-// с учетом пробелов
-func parseInput(input string) (Operation, error) {
-	trimmedInput := strings.TrimSpace(input)
-	if trimmedInput == "" {
-		return Operation{}, errors.New("пустая строка ввода")
-	}
-
-	regex := regexp.MustCompile(`^"([^"]+)"\s([+\-*/])\s(.+)$`)
-	matches := regex.FindStringSubmatch(trimmedInput)
-
-	if matches == nil || len(matches) != 4 {
-		return Operation{}, errors.New("ввод должен содержать ровно три элемента")
-	}
-
-	leftStr, err := validateAndProcessString("\"" + matches[1] + "\"")
-	if err != nil {
-		return Operation{}, err
-	}
-
-	opType, err := determineOperationType(matches[2])
-	if err != nil {
-		return Operation{}, err
-	}
-
-	rightStr, number, err := processSecondOperand(matches[3], opType)
-	if err != nil {
-		return Operation{}, err
-	}
-
-	return Operation{
-		LeftStr:  leftStr,
-		RightStr: rightStr,
-		Number:   number,
-		OpType:   opType,
-	}, nil
-}
-
-// Функция для выполнения вычислений
 func calculate(operation Operation) (string, error) {
 	switch operation.OpType {
 	case Add:
-		// Сложение строк
 		return handleStringOverflow(operation.LeftStr + operation.RightStr), nil
 	case Subtract:
-		// Вычитание строки из строки
 		return handleStringOverflow(strings.Replace(operation.LeftStr, operation.RightStr, "", -1)), nil
 	case Multiply:
-		// Умножение строки на число
 		return handleStringOverflow(strings.Repeat(operation.LeftStr, operation.Number)), nil
 	case Divide:
-		// Деление строки на число
 		if operation.Number == 0 {
-			return "", errors.New("деление на ноль")
+			panic("деление на ноль")
 		}
 		partLength := len(operation.LeftStr) / operation.Number
 		if partLength == 0 {
@@ -191,15 +106,13 @@ func calculate(operation Operation) (string, error) {
 		}
 		return handleStringOverflow(operation.LeftStr[:partLength]), nil
 	default:
-		return "", errors.New("неизвестная операция")
+		panic("неизвестная операция")
 	}
 }
 
-// Функция для обработки переполнения строки
 func handleStringOverflow(result string) string {
-	const maxOutputLength = 40
-	if len(result) > maxOutputLength {
-		return result[:maxOutputLength] + "..."
+	if len(result) > MaxOutputLength {
+		return result[:MaxOutputLength] + "..."
 	}
 	return result
 }
